@@ -104,7 +104,7 @@ class _BasicStereo:
         return np.mean(diff)
     
     def save_stereogram(self, imname):
-        cv2.imwrite(imname, self.depth_im)
+        np.save(imname, self.depth_im)
 
 
 
@@ -125,7 +125,6 @@ class StereoBlockMatch(_BasicStereo):
         
         # (i,j) loop over each pixel in image1 
         for i in range(self.half_window_size, self.r - self.half_window_size, self.stride_y):
-            print(i)
             for j in range(self.half_window_size, self.c - self.half_window_size, self.stride_x):
                 
                 # take cutout centered on each pixel in image1
@@ -153,7 +152,6 @@ class StereoBlockMatch(_BasicStereo):
                 if self.plot_lines:
                     if i % 30 == 0 and j in self.j_indices:
                         self.lines.append(cutout_match)
-        #self.depth_im = self.compute_depth(shift_im)
         self.depth_im = self.depth_im[1:-1,1:-1]
         np.save("basicStereo.npy", shift_im)
         #pdb.set_trace()
@@ -181,10 +179,9 @@ class VectorizedStereoBlockMatch(_BasicStereo):
                 shifted_im1 = im1.copy()
                 shifted_im2 = im2.copy()
 
-            mse_im = cv2.subtract(shifted_im1, shifted_im2) ** 2
+            mse_im = (np.float32(shifted_im1) - np.float32(shifted_im2)) ** 2
             mse_im = np.mean(mse_im, axis=2)
             mse_integral = cv2.integral(mse_im)
-            #mse_integral = mse_integral[:-1,1:]
             
             # use formula to compute sum of cutout from image integral
             # bottomright + topright - (bottomleft + topright)
@@ -207,23 +204,16 @@ class VectorizedStereoBlockMatch(_BasicStereo):
                 mse = self.pad_with_inf(mse, "right", shift_amount)
             mse_list.append(mse)
         mse_list = np.stack(mse_list)
+        np.save("vectorizedStereo.npy", mse_list)
         mse_list = np.argmin(mse_list, axis=0)
         
         # get distance of each offset from offset=0
         mse_list -= max_displacement
         padding = np.zeros(im1.shape[1]).reshape(-1,im1.shape[1])
-        #mse_list = np.vstack((padding, mse_list))
-        #mse_list = np.vstack((mse_list, padding))
-        #mse_list[:,0] = padding
-        #mse_list[:,-1] = padding
-        #mse_list = np.float64(mse_list)
         mse_list = np.int32(mse_list)
-        np.save("vectorizedStereo.npy", mse_list)
         self.depth_im = self.compute_depth(mse_list)
 
         
-
-
 
     
     def pad_with_inf(self, img, direction, padding):
