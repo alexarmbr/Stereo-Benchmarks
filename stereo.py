@@ -109,8 +109,6 @@ class _BasicStereo:
 
 
 
-
-
 class StereoBlockMatch(_BasicStereo):
 
     def _compute_stereogram(self, im1, im2):
@@ -179,6 +177,7 @@ class VectorizedStereoBlockMatch(_BasicStereo):
                 shifted_im1 = im1.copy()
                 shifted_im2 = im2.copy()
 
+            # take mse over whole image, average over color channel dimension
             mse_im = (np.float32(shifted_im1) - np.float32(shifted_im2)) ** 2
             mse_im = np.mean(mse_im, axis=2)
             mse_integral = cv2.integral(mse_im)
