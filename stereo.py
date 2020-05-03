@@ -165,7 +165,6 @@ class VectorizedStereoBlockMatch(_BasicStereo):
         
         # shift image by max displacement in both directions
         for i in reversed(range(-max_displacement, max_displacement)):
-            print(i)
             if i != 0:
                 if i < 0:
                     shifted_im2 = im2[:, :i].copy() # cut off right
@@ -203,7 +202,6 @@ class VectorizedStereoBlockMatch(_BasicStereo):
                 mse = self.pad_with_inf(mse, "right", shift_amount)
             mse_list.append(mse)
         mse_list = np.stack(mse_list)
-        np.save("vectorizedStereo.npy", mse_list)
         mse_list = np.argmin(mse_list, axis=0)
         
         # get distance of each offset from offset=0

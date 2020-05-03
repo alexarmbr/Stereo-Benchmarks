@@ -1,6 +1,8 @@
 import cupy as cp
-
-
+import numpy as np
+import cv2
+from stereo import _BasicStereo
+import pdb
 
 class CudaStereoBlockMatch(_BasicStereo):
 
@@ -11,7 +13,6 @@ class CudaStereoBlockMatch(_BasicStereo):
         
         # shift image by max displacement in both directions
         for i in reversed(range(-max_displacement, max_displacement)):
-            print(i)
             if i != 0:
                 if i < 0:
                     shifted_im2 = im2[:, :i].copy() # cut off right
@@ -38,7 +39,7 @@ class CudaStereoBlockMatch(_BasicStereo):
                 mse_integral[:-w, w:]
             mse = (A - B) / (self.window_size ** 2)
             mse = cp.float32(mse)
-            shift_amount = cp.abs(i)
+            shift_amount = np.abs(i)
             
             # pad so that mse arrays can be concatenated into one 3d array
             # and cp.argmin can be used
@@ -54,12 +55,11 @@ class CudaStereoBlockMatch(_BasicStereo):
         # get distance of each offset from offset=0
         mse_list -= max_displacement
         padding = cp.zeros(im1.shape[1]).reshape(-1,im1.shape[1])
-        mse_list = cp.int32(mse_list)
+        mse_list = mse_list.astype(cp.int32)
         self.depth_im = self.compute_depth(mse_list)
+        self.depth_im = cp.asnumpy(self.depth_im)
 
         
-
-    
     def pad_with_inf(self, img, direction, padding):
         """
         pad im to left or right with array of shape (im.shape[0], padding) of inf's
