@@ -23,7 +23,7 @@ class _BasicStereo:
         
         stride_y,x: how many pixels to skip in between matching computation
         """
-
+        #pdb.set_trace()
         self.im1 = im1
         self.im2 = im2
         if resize is not None:
@@ -36,7 +36,7 @@ class _BasicStereo:
         assert window_size % 2 == 1, "window size should be odd number"
         self.window_size = window_size
         self.half_window_size = window_size // 2
-        self.r, self.c, _ = self.im1.shape
+        self.r, self.c = self.im1.shape[:2]
         self.params = self.parse_metadata(metadata_path)
         self.depth_im = np.zeros(self.r*self.c).reshape((self.r, self.c))
         self.plot_lines = plot_lines
@@ -139,17 +139,14 @@ class StereoBlockMatch(_BasicStereo):
                     mse_errors.append(self.mse(cutout, cutout_match))
                     indices.append(k)
                 
+
+                # TODO should np stack go here?
                 min_ind = np.argmin(mse_errors)
                 min_ind = indices[min_ind]
                 shift_im[i,j] = j-min_ind
                 depth_est = self.compute_depth(j - min_ind)
                 self.depth_im[i,j] = depth_est
                 
-
-                # save curve of mse matches for this row
-                if self.plot_lines:
-                    if i % 30 == 0 and j in self.j_indices:
-                        self.lines.append(cutout_match)
         self.depth_im = self.depth_im[1:-1,1:-1]
         np.save("basicStereo.npy", shift_im)
         #pdb.set_trace()
