@@ -217,6 +217,7 @@ class VectorizedStereoBlockMatch(_BasicStereo):
         mse_list -= max_displacement
         padding = np.zeros(im1.shape[1]).reshape(-1,im1.shape[1])
         mse_list = np.int32(mse_list)
+        #self.argmin_result 
         self.depth_im = self.compute_depth(mse_list)
 
 

@@ -15,21 +15,41 @@ class SemiGlobalMatching(_BasicStereo):
             
         """
 
-        if "census_window_size" in kwargs:
-            self.census_kernel_size = kwargs["census_window_size"]
-        else:
-            self.census_kernel_size = 5
-        kwargs.pop("census_window_size")
+        # if "census_window_size" in kwargs:
+        #     self.census_kernel_size = kwargs["census_window_size"]
+        # else:
+        #     self.census_kernel_size = 5
+        # kwargs.pop("census_window_size")
         super().__init__(*args, **kwargs)
 
         self.im1 = cv2.cvtColor(self.im1, cv2.COLOR_BGR2GRAY)
         self.im2 = cv2.cvtColor(self.im2, cv2.COLOR_BGR2GRAY)
+        self.directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)]
+        self.census_images = {}
+        
+        self.census_kernel_size = None
+        self.csize = None
+        self.p1 = None
+        self.p2 = None
+
+    def set_params(self, param_dict):
+        """
+        sets parameters
+
+        Arguments:
+            param_dict {dictionary} -- dictionary containing required parameters
+        """
+        assert all([i in param_dict.keys() for i in ("p1", "p2", "census_kernel_size")]), "missing parameter"
+        self.p1 = param_dict['p1']
+        self.p2 = param_dict['p2']
+        self.census_kernel_size = param_dict['census_kernel_size']
+        self.csize = self.census_kernel_size // 2
         assert self.census_kernel_size % 2 == 1\
              and self.census_kernel_size < 8,\
                   "census kernel size needs to odd and less than 8"
-        self.csize = self.census_kernel_size // 2
-        self.directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)]
-        self.census_images = {}
+
+
+
 
     
     def _compute_stereogram(self, im1, im2):
@@ -40,10 +60,11 @@ class SemiGlobalMatching(_BasicStereo):
             im1 {np.ndarray} -- image 1
             im2 {np.ndarray} -- image 2
         """
+        assert self.p1 is not None, "parameters have not been set"
         cim1 = self.census_transform(im1)
         cim2 = self.census_transform(im2)
         cost_images = []
-        for d in range(self.params['ndisp']):
+        for d in range(int(self.params['ndisp'])):
             if d == 0:
                 shifted_im1 = cim1.copy()
                 shifted_im2 = cim2.copy()
@@ -54,13 +75,12 @@ class SemiGlobalMatching(_BasicStereo):
 
             cost_im = self.pad_with_inf(cost_im, "right", d)
             cost_images.append(cost_im)
-        
         cost_images = np.stack(cost_images)
         cost_images = cost_images.transpose(1,2,0)
-        #np.save("cost_volume.npy", cost_images)
-        pdb.set_trace()
         cost_images = self.aggregate_cost(cost_images)
-        min_cost_im = np.argmin(cost_images, axis=0)
+        min_cost_im = np.argmin(cost_images, axis=2)
+        min_cost_im += 1
+        min_cost_im = np.int32(min_cost_im)
         self.depth_im = self.compute_depth(min_cost_im)
 
 
@@ -131,8 +151,8 @@ class SemiGlobalMatching(_BasicStereo):
             I,J = self.get_starting_indices((u,v), (m,n))
             while len(I) > 0:
                 min_val = np.min(cost_array[I-u, J-v, :], axis = 1)
-                for d in D:
-                    L[I,J,d] += cost_array[I, J, d] + dp_criteria(cost_array[I-u, J-v, :], d, min_val)
+                for d in range(D):
+                    L[I,J,d] += cost_array[I, J, d] + self.dp_criteria(cost_array[I-u, J-v, :], d, min_val)
                 I+=u
                 J+=v
                 mask = np.logical_and(np.logical_and(0 <= I, I < m), np.logical_and(0 <= J, J < n)) # these are the paths that still have to traverse

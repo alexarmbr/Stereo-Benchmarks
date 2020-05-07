@@ -25,13 +25,22 @@ if __name__ == "__main__":
 
     #stereo1 = StereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", plot_lines=True, window_size=11, resize=(480,480))
     #stereo1.params['ndisp'] = 11
-    #stereo2 = VectorizedStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=19, resize=(480,480))
-    #stereo2.params['ndisp'] = 11
+    # stereo2 = VectorizedStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=3)
+    # stereo2.params['ndisp'] = 11
+    # stereo2.compute_stereogram()
+    # stereo2.normalize(0.05)
+    # plt.imshow(stereo2.depth_im)        
     #stereo3 = CudaStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=11, resize=(480,480))
+    
+    
     stereo4 = SemiGlobalMatching(im1, im2, "data/Backpack-perfect/calib.txt",
-    window_size=11, census_window_size = 3)
-    stereo4.params['ndisp'] = 11
+    window_size=3, resize=(240,240))
+    params = {"p1":5, "p2":30, "census_kernel_size":7}
+    stereo4.set_params(params)
+    stereo4.params['ndisp'] = 50
     stereo4.compute_stereogram()
+    stereo4.normalize(0.05)
+    plt.imshow(stereo4.depth_im)
 
 
 
