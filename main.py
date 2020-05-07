@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy
 import time
-
+import pdb
 try:
     from stereo_cupy import CudaStereoBlockMatch
 except ImportError:
@@ -20,16 +20,18 @@ if __name__ == "__main__":
     im1 = cv2.imread("data/Backpack-perfect/im1.png")
     im2 = cv2.imread("data/Backpack-perfect/im0.png")
 
-    #im1 = np.random.randint(0, 255, 16**2 * 3).reshape(16,16, 3)
-    #im2 = np.hstack((im1[:,4:,:], np.random.randint(0, 255, 4*16*3).reshape(16,4,3)))
+    im1 = np.uint8(np.random.randint(0, 255, 16**2 * 3).reshape(16,16, 3))
+    im2 = np.uint8(np.hstack((im1[:,4:,:], np.random.randint(0, 255, 4*16*3).reshape(16,4,3))))
 
     #stereo1 = StereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", plot_lines=True, window_size=11, resize=(480,480))
     #stereo1.params['ndisp'] = 11
-    stereo2 = VectorizedStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=19, resize=(480,480))
+    #stereo2 = VectorizedStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=19, resize=(480,480))
     #stereo2.params['ndisp'] = 11
     #stereo3 = CudaStereoBlockMatch(im1, im2, "data/Backpack-perfect/calib.txt", window_size=11, resize=(480,480))
     stereo4 = SemiGlobalMatching(im1, im2, "data/Backpack-perfect/calib.txt",
-    window_size=11, resize=(480,480), census_window_size = 3)
+    window_size=11, census_window_size = 3)
+    stereo4.params['ndisp'] = 11
+    stereo4.compute_stereogram()
 
 
 

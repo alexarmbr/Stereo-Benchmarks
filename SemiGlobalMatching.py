@@ -28,6 +28,7 @@ class SemiGlobalMatching(_BasicStereo):
              and self.census_kernel_size < 8,\
                   "census kernel size needs to odd and less than 8"
         self.csize = self.census_kernel_size // 2
+        self.directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)]
         self.census_images = {}
 
     
@@ -41,17 +42,23 @@ class SemiGlobalMatching(_BasicStereo):
         """
         cim1 = self.census_transform(im1)
         cim2 = self.census_transform(im2)
-
         cost_images = []
-        for d in range(max_displacement):
-            shifted_im2 = cim2[:, i:].copy() # cut off left
-            shifted_im1 = cim1[:, :-i].copy() # cut off right
+        for d in range(self.params['ndisp']):
+            if d == 0:
+                shifted_im1 = cim1.copy()
+                shifted_im2 = cim2.copy()
+            else:
+                shifted_im2 = cim2[:, d:].copy() # cut off left
+                shifted_im1 = cim1[:, :-d].copy() # cut off right
             cost_im = self.hamming_distance(shifted_im1, shifted_im2)
 
-            self.pad_with_inf(cost_im, "right", i)
+            cost_im = self.pad_with_inf(cost_im, "right", d)
             cost_images.append(cost_im)
         
         cost_images = np.stack(cost_images)
+        cost_images = cost_images.transpose(1,2,0)
+        #np.save("cost_volume.npy", cost_images)
+        pdb.set_trace()
         cost_images = self.aggregate_cost(cost_images)
         min_cost_im = np.argmin(cost_images, axis=0)
         self.depth_im = self.compute_depth(min_cost_im)
@@ -118,7 +125,89 @@ class SemiGlobalMatching(_BasicStereo):
         Arguments:
             cost_array {np.ndarray} -- array of shape (h,w,d) that contains pixel wise costs (hamming distances) for each d
         """
-        raise NotImplementedError
+        L = np.zeros(cost_array.shape)
+        m, n, D = cost_array.shape
+        for (u,v) in self.directions:
+            I,J = self.get_starting_indices((u,v), (m,n))
+            while len(I) > 0:
+                min_val = np.min(cost_array[I-u, J-v, :], axis = 1)
+                for d in D:
+                    L[I,J,d] += cost_array[I, J, d] + dp_criteria(cost_array[I-u, J-v, :], d, min_val)
+                I+=u
+                J+=v
+                mask = np.logical_and(np.logical_and(0 <= I, I < m), np.logical_and(0 <= J, J < n)) # these are the paths that still have to traverse
+                I = I[mask]
+                J = J[mask]
+        return L
+        
+        
+
+
+    def get_starting_indices(self, direction, im_shape):
+        """
+        generates starting array indices for cost aggregation using sweep direction
+        and shape of cost surface
+
+        Arguments:
+            dir {tuple} -- direction of aggregation along cost surface
+            im_shape {tuple} -- 2-d shape of cost surface, not including disparity dimension
+        """
+        m,n = im_shape
+        i_direction, j_direction = direction
+        assert (all([abs(i) < 2 for i in direction])), "Invalid Direction!"
+
+        if direction == (1,0):
+            I = np.array([1] * n)
+            J = np.array(range(n))
+        elif direction == (-1, 0):
+            I = np.array([m-2] * n)
+            J = np.array(range(n))
+        elif direction == (0,1):
+            I = np.array(range(m))
+            J = np.array([1] * m)
+        elif direction == (0,-1):
+            I = np.array(range(m))
+            J = np.array([n-2] * m)
+        elif direction == (1,1):
+            I = np.concatenate((np.array(range(1,m)), np.array([1] * (n-2))))
+            J = np.concatenate((np.array([1] * (m-1)), np.array(range(2,n))))
+        elif direction == (1,-1):
+            I = np.concatenate((np.array(range(1,m)), np.array([1] * (n-1))))
+            J = np.concatenate((np.array([n-2] * (m-1)), np.array(range(n-1))))
+        elif direction == (-1, 1):
+            I = np.concatenate((np.array(range(m-1)), np.array([m-2] * (n-2))))
+            J = np.concatenate((np.array([1] * (m-1)), np.array(range(2, n))))
+        elif direction == (-1, -1):
+            I = np.concatenate((np.array(range(m-1)), np.array([m-2] * (n-2))))
+            J = np.concatenate((np.array([n-2] * (m-1)), np.array(range(n-2))))
+        return I,J
+
+    
+    #TODO: make sure this is correct!
+    def dp_criteria(self, disparity_costs, d, prev_min):
+        """
+        generates cost associated with neighboring cell according to 
+        criteria explained in paper
+
+        Arguments:
+            disparity_costs {np.ndarray} -- costs of each disparity from all adjacent cells
+            d {int} -- current disparity to compute
+            prev_min {float} -- minimum cost of disparity from adjacent cell to scale current cell by
+        """
+        d1 = disparity_costs[:, d]
+        if d-1 >= 0:
+            d2 = disparity_costs[:, d-1] + self.p1
+        else:
+            d2 = np.array([float("inf")] * disparity_costs.shape[0])
+        
+        if d+1 < disparity_costs.shape[1]:
+            d3 = disparity_costs[:, d+1] + self.p1
+        else:
+            d3 = np.array([float("inf")] * disparity_costs.shape[0])
+        d4 = prev_min + self.p2
+        costs = np.vstack((d1, d2, d3, d4)).T
+        return np.min(costs, axis=1) + prev_min
+        
 
     
 

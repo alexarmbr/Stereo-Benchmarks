@@ -59,6 +59,18 @@ class _BasicStereo:
                 d[key]=val
         d['focal_length'] = float(d['cam0'].strip("[").split(" ")[0])
         return d
+    
+    def pad_with_inf(self, img, direction, padding):
+        """
+        pad im to left or right with array of shape (im.shape[0], padding) of inf's
+        """
+        assert direction in {'left', 'right'}, "must pad to the left or right of image"
+        pad = np.array([float('inf')] * (img.shape[0]*padding)).reshape(img.shape[0], padding)
+        if direction == "left":
+            img = np.hstack((pad,img))
+        elif direction == "right":
+            img = np.hstack((img, pad))
+        return img
 
     
     def compute_stereogram(self):
@@ -207,20 +219,6 @@ class VectorizedStereoBlockMatch(_BasicStereo):
         mse_list = np.int32(mse_list)
         self.depth_im = self.compute_depth(mse_list)
 
-        
-
-    
-    def pad_with_inf(self, img, direction, padding):
-        """
-        pad im to left or right with array of shape (im.shape[0], padding) of inf's
-        """
-        assert direction in {'left', 'right'}, "must pad to the left or right of image"
-        pad = np.array([float('inf')] * (img.shape[0]*padding)).reshape(img.shape[0], padding)
-        if direction == "left":
-            img = np.hstack((pad,img))
-        elif direction == "right":
-            img = np.hstack((img, pad))
-        return img
 
 
 
