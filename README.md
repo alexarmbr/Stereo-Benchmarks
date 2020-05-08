@@ -1,7 +1,7 @@
 # Stereo
 This repo contains python implementations of simple block matching, and the more advanced
 semi global matching algorithm, to generate stereograms (depth images) from two corresponding images taken
-from calibrated cameras.
+from calibrated cameras. run `setup.sh` to get the datasets.
 
 ### Block Matching
 Contains naive implementation which is extremely slow (essentially three loops - for each pixel in image A
