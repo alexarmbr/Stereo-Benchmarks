@@ -1,5 +1,5 @@
 
-from stereo import StereoBlockMatch, VectorizedStereoBlockMatch
+from BlockMatching import StereoBlockMatch, VectorizedStereoBlockMatch
 from SemiGlobalMatching import SemiGlobalMatching
 import cv2
 import numpy as np
@@ -8,7 +8,7 @@ import scipy
 import time
 import pdb
 try:
-    from stereo_cupy import CudaStereoBlockMatch
+    from BlockMatchingCupy import CudaStereoBlockMatch
 except ImportError:
     pass
 

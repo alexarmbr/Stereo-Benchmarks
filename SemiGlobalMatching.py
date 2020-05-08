@@ -1,4 +1,4 @@
-from stereo import _BasicStereo
+from BlockMatching import _BasicStereo
 import pdb
 import cv2
 import numpy as np
