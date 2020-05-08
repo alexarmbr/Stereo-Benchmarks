@@ -31,6 +31,7 @@ class SemiGlobalMatching(_BasicStereo):
         self.csize = None
         self.p1 = None
         self.p2 = None
+        self.reversed = None
 
     def set_params(self, param_dict):
         """
@@ -39,16 +40,31 @@ class SemiGlobalMatching(_BasicStereo):
         Arguments:
             param_dict {dictionary} -- dictionary containing required parameters
         """
-        assert all([i in param_dict.keys() for i in ("p1", "p2", "census_kernel_size")]), "missing parameter"
-        self.p1 = param_dict['p1']
-        self.p2 = param_dict['p2']
-        self.census_kernel_size = param_dict['census_kernel_size']
-        self.csize = self.census_kernel_size // 2
-        assert self.census_kernel_size % 2 == 1\
-             and self.census_kernel_size < 8,\
-                  "census kernel size needs to odd and less than 8"
+        #assert all([i in param_dict.keys() for i in ("p1", "p2", "census_kernel_size","reversed")]), "missing parameter"
+        if 'p1' in param_dict:
+            self.p1 = param_dict['p1']
+        if 'p2' in param_dict:
+            self.p2 = param_dict['p2']
+        if 'census_kernel_size' in param_dict:
+            self.census_kernel_size = param_dict['census_kernel_size']
+            self.csize = self.census_kernel_size // 2
+            assert self.census_kernel_size % 2 == 1\
+                and self.census_kernel_size < 8,\
+                    "census kernel size needs to odd and less than 8"
+        if 'reversed' in param_dict:
+            self.reversed = param_dict['reversed']
 
 
+
+    def compute_stereogram(self):
+        self.set_params({'reversed':False})
+        stereo1 = self._compute_stereogram(self.im1, self.im2)
+        self.set_params({'reversed':True})
+        stereo2 = self._compute_stereogram(self.im2, self.im1)
+        stereo1 = self.normalize(stereo1, 0.1)
+        stereo2 = self.normalize(stereo2, 0.1)
+        stereo = (stereo1 + stereo2) / 2
+        return stereo
 
 
     
@@ -64,27 +80,53 @@ class SemiGlobalMatching(_BasicStereo):
         cim1 = self.census_transform(im1)
         cim2 = self.census_transform(im2)
         cost_images = []
-        for d in range(int(self.params['ndisp'])):
-            if d == 0:
+        if not self.reversed:
+            D = range(int(self.params['ndisp']))
+        else:
+            D = reversed(range(int(-self.params['ndisp']), 1))
+        
+        
+        
+        for d in D:
+            if d != 0:
+                if d < 0:
+                    shifted_im2 = cim2[:, :d].copy() # cut off right
+                    shifted_im1 = cim1[:, -d:].copy() # cut off left
+                else:
+                    shifted_im2 = cim2[:, d:].copy() # cut off left
+                    shifted_im1 = cim1[:, :-d].copy() # cut off right
+            else:
                 shifted_im1 = cim1.copy()
                 shifted_im2 = cim2.copy()
-            else:
-                shifted_im2 = cim2[:, d:].copy() # cut off left
-                shifted_im1 = cim1[:, :-d].copy() # cut off right
             cost_im = self.hamming_distance(shifted_im1, shifted_im2)
 
-            cost_im = self.pad_with_inf(cost_im, "right", d)
+            if d > 0:
+                cost_im = self.pad_with_inf(cost_im, "right", d)
+            elif d < 0:
+                cost_im = self.pad_with_inf(cost_im, "left", -d)
+    
             cost_images.append(cost_im)
+        #pdb.set_trace()
         cost_images = np.stack(cost_images)
         cost_images = cost_images.transpose(1,2,0)
         cost_images = self.aggregate_cost(cost_images)
         min_cost_im = np.argmin(cost_images, axis=2)
         min_cost_im += 1
+        min_cost_im = cv2.medianBlur(np.float32(min_cost_im), 3)
         min_cost_im = np.int32(min_cost_im)
-        self.depth_im = self.compute_depth(min_cost_im)
+        return self.compute_depth(min_cost_im)
 
 
+    def normalize(self, img, q):
+        """
+        replace all values less than quantile q with quantile q
+        replace all values greater than quantile 1-1 with quantile 1-q
 
+        """
+        lower, upper = tuple(np.quantile(img, (q, 1-q)))
+        img[img < lower] = lower
+        img[img > upper] = upper
+        return img
 
     def census_transform(self, image, imname = None):
         """
