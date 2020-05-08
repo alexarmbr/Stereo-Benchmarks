@@ -15,11 +15,6 @@ class SemiGlobalMatching(_BasicStereo):
             
         """
 
-        # if "census_window_size" in kwargs:
-        #     self.census_kernel_size = kwargs["census_window_size"]
-        # else:
-        #     self.census_kernel_size = 5
-        # kwargs.pop("census_window_size")
         super().__init__(*args, **kwargs)
 
         self.im1 = cv2.cvtColor(self.im1, cv2.COLOR_BGR2GRAY)
@@ -40,7 +35,6 @@ class SemiGlobalMatching(_BasicStereo):
         Arguments:
             param_dict {dictionary} -- dictionary containing required parameters
         """
-        #assert all([i in param_dict.keys() for i in ("p1", "p2", "census_kernel_size","reversed")]), "missing parameter"
         if 'p1' in param_dict:
             self.p1 = param_dict['p1']
         if 'p2' in param_dict:
@@ -59,12 +53,12 @@ class SemiGlobalMatching(_BasicStereo):
     def compute_stereogram(self):
         self.set_params({'reversed':False})
         stereo1 = self._compute_stereogram(self.im1, self.im2)
-        self.set_params({'reversed':True})
-        stereo2 = self._compute_stereogram(self.im2, self.im1)
-        stereo1 = self.normalize(stereo1, 0.1)
-        stereo2 = self.normalize(stereo2, 0.1)
-        stereo = (stereo1 + stereo2) / 2
-        return stereo
+        #self.set_params({'reversed':True})
+        #stereo2 = self._compute_stereogram(self.im2, self.im1)
+        #stereo1 = self.normalize(stereo1, 0.1)
+        #stereo2 = self.normalize(stereo2, 0.1)
+        #stereo = (stereo1 + stereo2) / 2
+        return stereo1
 
 
     
@@ -106,7 +100,6 @@ class SemiGlobalMatching(_BasicStereo):
                 cost_im = self.pad_with_inf(cost_im, "left", -d)
     
             cost_images.append(cost_im)
-        #pdb.set_trace()
         cost_images = np.stack(cost_images)
         cost_images = cost_images.transpose(1,2,0)
         cost_images = self.aggregate_cost(cost_images)
@@ -194,7 +187,7 @@ class SemiGlobalMatching(_BasicStereo):
             while len(I) > 0:
                 min_val = np.min(cost_array[I-u, J-v, :], axis = 1)
                 for d in range(D):
-                    L[I,J,d] += cost_array[I, J, d] + self.dp_criteria(cost_array[I-u, J-v, :], d, min_val)
+                    L[I,J,d] += cost_array[I, J, d] + self.dp_criteria(L[I-u, J-v, :], d, min_val)
                 I+=u
                 J+=v
                 mask = np.logical_and(np.logical_and(0 <= I, I < m), np.logical_and(0 <= J, J < n)) # these are the paths that still have to traverse
@@ -245,7 +238,6 @@ class SemiGlobalMatching(_BasicStereo):
         return I,J
 
     
-    #TODO: make sure this is correct!
     def dp_criteria(self, disparity_costs, d, prev_min):
         """
         generates cost associated with neighboring cell according to 

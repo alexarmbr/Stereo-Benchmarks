@@ -150,9 +150,7 @@ class StereoBlockMatch(_BasicStereo):
                     k-self.half_window_size:k+self.half_window_size+1,:]
                     mse_errors.append(self.mse(cutout, cutout_match))
                     indices.append(k)
-                
-
-                # TODO should np stack go here?
+            
                 min_ind = np.argmin(mse_errors)
                 min_ind = indices[min_ind]
                 shift_im[i,j] = j-min_ind
