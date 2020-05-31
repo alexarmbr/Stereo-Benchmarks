@@ -73,6 +73,8 @@ class SemiGlobalMatching(_BasicStereo):
         assert self.p1 is not None, "parameters have not been set"
         cim1 = self.census_transform(im1)
         cim2 = self.census_transform(im2)
+        #cim1 = im1.astype(np.int16)
+        #cim2 = im2.astype(np.int16)
         cost_images = []
         if not self.reversed:
             D = range(int(self.params['ndisp']))
@@ -93,6 +95,7 @@ class SemiGlobalMatching(_BasicStereo):
                 shifted_im1 = cim1.copy()
                 shifted_im2 = cim2.copy()
             cost_im = self.hamming_distance(shifted_im1, shifted_im2)
+            #cost_im = np.abs(shifted_im1 - shifted_im2)
 
             if d > 0:
                 cost_im = self.pad_with_inf(cost_im, "right", d)
